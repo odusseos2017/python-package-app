@@ -62,11 +62,35 @@ pipeline {
     stage('Test') {
       steps {
         script {
-          echo "Test start"
           //Start a docker container based on the image and make sure it responds to HTTP requests
           docker.image("$CONTAINER_NAME:$BUILD_NUMBER").withRun('-p 5000:8080') { c ->
             sh 'sleep 5'
             sh 'curl http://127.0.0.1:5000/ --verbose'
+          }
+        }
+      }
+    }
+
+    stage('Publish to ECR') {
+      steps {
+        script {
+          withCredentials([usernamePassword(
+            credentialsId: CREDENTIALS_ID,
+            passwordVariable: 'AWS_SECRET_ACCESS_KEY',
+            usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+
+              docker.withRegistry('https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com') {
+                //Retrieve the Amazon ECR authenthication token, and use it to configure the Docker daemon
+                sh """
+                  aws ecr get-login-password \
+                  | docker login \
+                  --username AWS \
+                  --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                  """
+
+                  //Push image to ECR
+                  docker.image("$CONTAINER_NAME:$BUILD_ID").push()
+              }
           }
         }
       }
