@@ -62,6 +62,7 @@ pipeline {
     stage('Test') {
       steps {
         script {
+          echo "Test start"
           //Start a docker container based on the image and make sure it responds to HTTP requests
           docker.image('$CONTAINER_NAME:$BUILD_NUMBER').withRun('-p 5000:8080') { c ->
             sh 'sleep 5'
